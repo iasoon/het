@@ -4,13 +4,23 @@ mod evaluator;
 
 use std::env;
 
-fn main() {
+use std::fs::File;
+use std::io::Read;
+
+fn main() -> std::io::Result<()> {
     let args: Vec<String> = env::args().collect();
-    let text = &args[1];
-    match eval(text) {
+    let path = &args[1];
+
+    let mut file = File::open(path)?;
+    let mut contents = String::new();
+
+    file.read_to_string(&mut contents)?;
+
+    match eval(&contents) {
         Ok(res) => println!("{}", res),
         Err(err) => println!("Error: {}", err),
     }
+    Ok(())
 }
 
 fn eval(text: &str) -> Result<evaluator::Value, String> {

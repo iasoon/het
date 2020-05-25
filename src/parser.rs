@@ -96,5 +96,5 @@ fn parse_sexp(stream: &mut TokenStream) -> Result<Expr, String> {
 
 pub fn parse_tokens(tokens: &[Token]) -> Result<Expr, String> {
     let mut stream = TokenStream::new(tokens);
-    return parse_expr(&mut stream);
+    return parse_sexp(&mut stream);
 }
