@@ -1,10 +1,11 @@
 use super::lexer::Token;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Expr {
     Identifier(String),
     Sexp(Vec<Expr>),
     Value(f64),
+    Lambda { arg: String, body: Box<Expr> }
 }
 
 struct TokenStream<'a> {
@@ -40,6 +41,10 @@ fn parse_expr(stream: &mut TokenStream) -> Result<Expr, String> {
     if let Ok(number) = parse_number(stream) {
         return Ok(number);
     }
+    if let Ok(lambda) = parse_lambda(stream) {
+        return Ok(lambda);
+    }
+
 
     return Err("No rules matched".into())
 }
@@ -75,7 +80,7 @@ fn parse_number(stream: &mut TokenStream) -> Result<Expr, String> {
 
 fn parse_sexp(stream: &mut TokenStream) -> Result<Expr, String> {
     match stream.pos().unwrap() {
-        Token::Symbol(sym) if *sym == '(' => (),
+        Token::Symbol(sym) if sym == "(" => (),
         _ => return Err("expected '('".into())
 
     }
@@ -84,7 +89,7 @@ fn parse_sexp(stream: &mut TokenStream) -> Result<Expr, String> {
     loop {
         match stream.pos() {
             None => return Err("unexpected EOS".into()),
-            Some(Token::Symbol(sym)) if *sym == ')' => {stream.advance(); break},
+            Some(Token::Symbol(sym)) if sym == ")" => {stream.advance(); break},
             Some(_) => {
                 let expr = parse_expr(stream)?;
                 buf.push(expr);
@@ -94,7 +99,30 @@ fn parse_sexp(stream: &mut TokenStream) -> Result<Expr, String> {
     return Ok(Expr::Sexp(buf));
 }
 
+fn parse_lambda(stream: &mut TokenStream) -> Result<Expr, String> {
+    match stream.pos() {
+        Some(Token::Symbol(sym)) if sym == "\\" => {
+            stream.advance();
+        }
+        _ => return Err("missing lambda symbol".into())
+    }
+
+    let arg = match stream.pos() {
+        Some(Token::Identifier(id)) => id.clone(),
+        _ => return Err("missing identifier".into()),
+    };
+    stream.advance();
+    skip_whitespace(stream);
+
+    match stream.pos() {
+        Some(Token::Symbol(sym)) if sym == "->" => { stream.advance() },
+        _ => return Err("missing lambda arrow".into())
+    }
+    let body = Box::new(parse_expr(stream)?);
+    return Ok(Expr::Lambda { arg, body });
+}
+
 pub fn parse_tokens(tokens: &[Token]) -> Result<Expr, String> {
     let mut stream = TokenStream::new(tokens);
-    return parse_sexp(&mut stream);
+    return parse_expr(&mut stream);
 }

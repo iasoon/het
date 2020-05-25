@@ -3,7 +3,7 @@ pub enum Token {
     Whitespace(String),
     Identifier(String),
     Number(String),
-    Symbol(char),
+    Symbol(String),
 }
 
 use Token::*;
@@ -14,6 +14,7 @@ enum CharType {
     ALPHA,
     NUMERIC,
     WHITESPACE,
+    BRACKET,
     SYMBOLIC,
     OTHER,
 }
@@ -23,8 +24,10 @@ fn char_type(ch: &char) -> CharType {
         ' ' | '\t' |'\n' => CharType::WHITESPACE,
         'a'..='z'| 'A'..='Z' => CharType::ALPHA,
         '0'..='9' => CharType::NUMERIC,
-        '(' | ')' | '{' | '}' | '[' | ']' => CharType::SYMBOLIC,
+        '(' | ')' | '{' | '}' | '[' | ']' => CharType::BRACKET,
         '+' | '-' | '*' | '/'  => CharType::SYMBOLIC,
+        '<' | '>' | '=' => CharType::SYMBOLIC,
+        ':' | '\\'  => CharType::SYMBOLIC,
         _ => CharType::OTHER,
     }
 }
@@ -112,8 +115,12 @@ fn lex_number<'a>(lexer: &mut Lexer<'a>) -> Result<String, String> {
     lexer.read_multiple(|ch| char_type(ch) == CharType::NUMERIC)
 }
 
-fn lex_symbol<'a>(lexer: &mut Lexer<'a>) -> Result<char, String> {
-    let ch = lexer.match_head(|ch| char_type(ch) == CharType::SYMBOLIC)?;
+fn lex_symbol<'a>(lexer: &mut Lexer<'a>) -> Result<String, String> {
+    lexer.read_multiple(|ch| char_type(ch) == CharType::SYMBOLIC)
+}
+
+fn lex_bracket<'a>(lexer: &mut Lexer<'a>) -> Result<char, String> {
+    let ch = lexer.match_head(|ch| char_type(ch) == CharType::BRACKET)?;
     lexer.advance();
     return Ok(ch);
 }
@@ -128,6 +135,9 @@ fn lex<'a>(lexer: &mut Lexer<'a>) -> Result<Token, String> {
     }
     if let Ok(text) = lex_number(lexer) {
         return Ok(Number(text))
+    }
+    if let Ok(ch) = lex_bracket(lexer) {
+        return Ok(Symbol(ch.to_string()))
     }
     if let Ok(text) = lex_symbol(lexer) {
         return Ok(Symbol(text))

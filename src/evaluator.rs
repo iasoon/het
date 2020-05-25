@@ -7,6 +7,16 @@ use std::fmt;
 pub enum Value {
     PrimitiveFn(&'static dyn Fn(&[Value]) -> Result<Value, String>),
     Number(f64),
+    Lambda { arg: String, body: Closure },
+}
+
+#[derive(Clone)]
+pub struct Closure {
+    env: Env,
+    expr: Expr,
+}
+
+impl Closure {
 }
 
 impl fmt::Display for Value {
@@ -14,10 +24,14 @@ impl fmt::Display for Value {
         match self {
             Value::PrimitiveFn(_) => write!(f, "<primitive fn>"),
             Value::Number(num) => write!(f, "{}", num),
+            Value::Lambda { arg, body } => {
+                write!(f, "\\{} -> {:?}", arg, body.expr)
+            }
         }
     }
 }
 
+#[derive(Clone)]
 struct Env {
     bindings: HashMap<String, Value>,
 }
@@ -56,6 +70,12 @@ fn eval_(env: &Env, expr: &Expr) -> Result<Value, String> {
             }
             apply(&evaluated)
         }
+        Expr::Lambda { arg, body } => {
+            Ok(Value::Lambda {
+                arg: arg.clone(),
+                body: Closure  { env: env.clone(), expr: (**body).clone()}
+            })
+        },
     }
 }
 
@@ -63,6 +83,11 @@ fn apply(values: &[Value]) -> Result<Value, String> {
     match &values[0] {
         Value::PrimitiveFn(fun) => {
             fun(&values[1..])
+        }
+        Value::Lambda { arg, body } => {
+            let mut env = body.env.clone();
+            env.bindings.insert(arg.clone(), values[1].clone());
+            return eval_(&env, &body.expr );
         }
         _ => Err(format!("Type mismatch in apply"))
     }
