@@ -1,7 +1,9 @@
 #[derive(Debug)]
-enum Token {
+pub enum Token {
     Whitespace(String),
     Identifier(String),
+    Number(String),
+    Symbol(char),
 }
 
 use Token::*;
@@ -12,6 +14,7 @@ enum CharType {
     ALPHA,
     NUMERIC,
     WHITESPACE,
+    SYMBOLIC,
     OTHER,
 }
 
@@ -20,6 +23,7 @@ fn char_type(ch: &char) -> CharType {
         ' ' | '\t' |'\n' => CharType::WHITESPACE,
         'a'..='z'| 'A'..='Z' => CharType::ALPHA,
         '0'..='9' => CharType::NUMERIC,
+        '(' | ')' | '{' | '}' | '[' | ']' => CharType::SYMBOLIC,
         _ => CharType::OTHER,
     }
 }
@@ -103,6 +107,16 @@ fn lex_whitespace<'a>(lexer: &mut Lexer<'a>) -> Result<String, String> {
     lexer.read_multiple(|ch| char_type(ch) == CharType::WHITESPACE)
 }
 
+fn lex_number<'a>(lexer: &mut Lexer<'a>) -> Result<String, String> {
+    lexer.read_multiple(|ch| char_type(ch) == CharType::NUMERIC)
+}
+
+fn lex_symbol<'a>(lexer: &mut Lexer<'a>) -> Result<char, String> {
+    let ch = lexer.match_head(|ch| char_type(ch) == CharType::SYMBOLIC)?;
+    lexer.advance();
+    return Ok(ch);
+}
+
 
 fn lex<'a>(lexer: &mut Lexer<'a>) -> Result<Token, String> {
     if let Ok(text) = lex_whitespace(lexer) {
@@ -110,6 +124,12 @@ fn lex<'a>(lexer: &mut Lexer<'a>) -> Result<Token, String> {
     }
     if let Ok(text) = lex_identifier(lexer) {
         return Ok(Identifier(text))
+    }
+    if let Ok(text) = lex_number(lexer) {
+        return Ok(Number(text))
+    }
+    if let Ok(text) = lex_symbol(lexer) {
+        return Ok(Symbol(text))
     }
     return Err("lexing failed".into())
 }
@@ -124,8 +144,7 @@ fn lex_all<'a>(lexer: &mut Lexer<'a>) -> Result<Vec<Token>, String> {
 }
 
 
-pub fn test() {
-    let test_str = "hoi  test";
-    let mut lexer = Lexer::new(test_str);
-    println!("{:?}", lex_all(&mut lexer));
+pub fn lex_str(string: &str) -> Result<Vec<Token>, String> {
+    let mut lexer = Lexer::new(string);
+    return lex_all(&mut lexer);
 }
