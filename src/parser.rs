@@ -4,6 +4,7 @@ use super::lexer::Token;
 pub enum Expr {
     Identifier(String),
     Sexp(Vec<Expr>),
+    Value(f64),
 }
 
 struct TokenStream<'a> {
@@ -36,6 +37,9 @@ fn parse_expr(stream: &mut TokenStream) -> Result<Expr, String> {
     if let Ok(identifier) = parse_identifier(stream) {
         return Ok(identifier);
     }
+    if let Ok(number) = parse_number(stream) {
+        return Ok(number);
+    }
 
     return Err("No rules matched".into())
 }
@@ -53,6 +57,19 @@ fn parse_identifier(stream: &mut TokenStream) -> Result<Expr, String> {
             Ok(Expr::Identifier(id.clone()))
         }
         _ => Err("expected identifier".into())
+    }
+}
+
+fn parse_number(stream: &mut TokenStream) -> Result<Expr, String> {
+    match stream.pos() {
+        Some(Token::Number(text)) => {
+            stream.advance();
+            match text.parse::<f64>() {
+                Ok(num) => Ok(Expr::Value(num)),
+                Err(err) => Err(format!("{}", err)),
+            }
+        }
+        _ => Err("Not a number".into())
     }
 }
 

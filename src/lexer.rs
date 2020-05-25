@@ -24,6 +24,7 @@ fn char_type(ch: &char) -> CharType {
         'a'..='z'| 'A'..='Z' => CharType::ALPHA,
         '0'..='9' => CharType::NUMERIC,
         '(' | ')' | '{' | '}' | '[' | ']' => CharType::SYMBOLIC,
+        '+' | '-' | '*' | '/'  => CharType::SYMBOLIC,
         _ => CharType::OTHER,
     }
 }
