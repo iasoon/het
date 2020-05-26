@@ -1,4 +1,4 @@
-use super::parser::Expr;
+use super::ast::Expr;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -7,7 +7,7 @@ use std::fmt;
 pub enum Value {
     PrimitiveFn(&'static dyn Fn(&[Value]) -> Result<Value, String>),
     Number(f64),
-    Lambda { arg: String, body: Closure },
+    Lambda { args: Vec<String>, body: Closure },
 }
 
 #[derive(Clone)]
@@ -16,23 +16,20 @@ pub struct Closure {
     expr: Expr,
 }
 
-impl Closure {
-}
-
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Value::PrimitiveFn(_) => write!(f, "<primitive fn>"),
             Value::Number(num) => write!(f, "{}", num),
-            Value::Lambda { arg, body } => {
-                write!(f, "\\{} -> {:?}", arg, body.expr)
+            Value::Lambda { args, body } => {
+                write!(f, "\\{:#?} -> {:?}", args, body.expr)
             }
         }
     }
 }
 
 #[derive(Clone)]
-struct Env {
+pub struct Env {
     bindings: HashMap<String, Value>,
 }
 
@@ -55,38 +52,41 @@ pub fn eval(expr: &Expr) -> Result<Value, String> {
 
 fn eval_(env: &Env, expr: &Expr) -> Result<Value, String> {
     match expr {
-        Expr::Value(num) => Ok(Value::Number(num.clone())),
+        Expr::Number(num) => Ok(Value::Number(num.clone())),
         Expr::Identifier(id) => {
             match env.resolve(id) {
                 Some(val) => Ok(val.clone()),
                 None => Err(format!("unknown identifier {}", id))
             }
         },
-        Expr::Sexp(exprs) => {
-            let mut evaluated = Vec::with_capacity(exprs.len());
-            for expr in exprs.iter() {
-                let value = eval_(env, expr)?;
-                evaluated.push(value);
+        Expr::Application { abs, args } => {
+            let abs_eval = eval_(env, abs)?;
+            let mut args_eval = Vec::with_capacity(args.len());
+            for arg in args {
+                let arg_eval = eval_(env, arg)?;
+                args_eval.push(arg_eval);
             }
-            apply(&evaluated)
+            apply(&abs_eval, &args_eval)
         }
-        Expr::Lambda { arg, body } => {
+        Expr::Abstraction { args, body } => {
             Ok(Value::Lambda {
-                arg: arg.clone(),
+                args: args.clone(),
                 body: Closure  { env: env.clone(), expr: (**body).clone()}
             })
         },
     }
 }
 
-fn apply(values: &[Value]) -> Result<Value, String> {
-    match &values[0] {
+fn apply(abs: &Value, args: &[Value]) -> Result<Value, String> {
+    match abs {
         Value::PrimitiveFn(fun) => {
-            fun(&values[1..])
+            fun(args)
         }
-        Value::Lambda { arg, body } => {
+        Value::Lambda { args: arg_names, body } => {
             let mut env = body.env.clone();
-            env.bindings.insert(arg.clone(), values[1].clone());
+            for (name, value) in arg_names.iter().zip(args.iter()) {
+                env.bindings.insert(name.clone(), value.clone());
+            }
             return eval_(&env, &body.expr );
         }
         _ => Err(format!("Type mismatch in apply"))

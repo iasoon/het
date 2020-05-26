@@ -1,4 +1,5 @@
 mod lexer;
+mod ast;
 mod parser;
 mod evaluator;
 
@@ -17,15 +18,18 @@ fn main() -> std::io::Result<()> {
     file.read_to_string(&mut contents)?;
 
     match eval(&contents) {
-        Ok(res) => println!("{}", res),
+        Ok(_) => (),
         Err(err) => println!("Error: {}", err),
     }
     Ok(())
 }
 
-fn eval(text: &str) -> Result<evaluator::Value, String> {
+fn eval(text: &str) -> Result<(), String> {
     let tokens = lexer::lex_str(text)?;
-    let expr = parser::parse_tokens(&tokens)?;
-    let res = evaluator::eval(&expr);
-    return res;
+    let exprs = parser::parse_tokens(&tokens)?;
+    for e in exprs {
+        println!("{:?}", e);
+        println!("{}", evaluator::eval(&e)?)
+    }
+    return Ok(());
 }

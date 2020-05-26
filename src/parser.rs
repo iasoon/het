@@ -1,12 +1,5 @@
 use super::lexer::Token;
-
-#[derive(Clone, Debug)]
-pub enum Expr {
-    Identifier(String),
-    Sexp(Vec<Expr>),
-    Value(f64),
-    Lambda { arg: String, body: Box<Expr> }
-}
+use super::ast::Expr;
 
 struct TokenStream<'a> {
     pos: usize,
@@ -70,7 +63,7 @@ fn parse_number(stream: &mut TokenStream) -> Result<Expr, String> {
         Some(Token::Number(text)) => {
             stream.advance();
             match text.parse::<f64>() {
-                Ok(num) => Ok(Expr::Value(num)),
+                Ok(num) => Ok(Expr::Number(num)),
                 Err(err) => Err(format!("{}", err)),
             }
         }
@@ -96,7 +89,15 @@ fn parse_sexp(stream: &mut TokenStream) -> Result<Expr, String> {
             }
         }
     }
-    return Ok(Expr::Sexp(buf));
+    match buf.len() {
+        0 => Err("empty sexp".into()),
+        1 => Ok(buf[0].clone()),
+        _ => {
+            let abs = Box::new(buf[0].clone());
+            let args = buf[1..].to_vec();
+            Ok(Expr::Application { abs, args })
+        }
+    }
 }
 
 fn parse_lambda(stream: &mut TokenStream) -> Result<Expr, String> {
@@ -107,7 +108,7 @@ fn parse_lambda(stream: &mut TokenStream) -> Result<Expr, String> {
         _ => return Err("missing lambda symbol".into())
     }
 
-    let arg = match stream.pos() {
+    let param = match stream.pos() {
         Some(Token::Identifier(id)) => id.clone(),
         _ => return Err("missing identifier".into()),
     };
@@ -118,11 +119,22 @@ fn parse_lambda(stream: &mut TokenStream) -> Result<Expr, String> {
         Some(Token::Symbol(sym)) if sym == "->" => { stream.advance() },
         _ => return Err("missing lambda arrow".into())
     }
+    let args = vec![param];
     let body = Box::new(parse_expr(stream)?);
-    return Ok(Expr::Lambda { arg, body });
+    return Ok(Expr::Abstraction { args, body });
 }
 
-pub fn parse_tokens(tokens: &[Token]) -> Result<Expr, String> {
+fn parse_exprs(stream: &mut TokenStream) -> Result<Vec<Expr>, String> {
+    let mut buf = Vec::new();
+    while stream.pos().is_some() {
+        let expr = parse_expr(stream)?;
+        buf.push(expr);
+    }
+    return Ok(buf);
+
+}
+
+pub fn parse_tokens(tokens: &[Token]) -> Result<Vec<Expr>, String> {
     let mut stream = TokenStream::new(tokens);
-    return parse_expr(&mut stream);
+    return parse_exprs(&mut stream);
 }
