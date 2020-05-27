@@ -1,5 +1,5 @@
 use super::lexer::Token;
-use super::ast::Expr;
+use super::ast::{Declaration, Expr};
 
 struct TokenStream<'a> {
     pos: usize,
@@ -108,18 +108,36 @@ fn parse_lambda(stream: &mut TokenStream) -> Result<Expr, String> {
         _ => return Err("missing lambda symbol".into())
     }
 
-    let param = match stream.pos() {
+    let arg_name = match stream.pos() {
         Some(Token::Identifier(id)) => id.clone(),
         _ => return Err("missing identifier".into()),
     };
+
+    let mut decl = Declaration { name: arg_name, type_name: None };
+    
     stream.advance();
+    match stream.pos() {
+        Some(Token::Symbol(sym)) if sym == ":" => {
+            stream.advance();
+            
+            match stream.pos() {
+                Some(Token::Identifier(id)) => {
+                    decl.type_name = Some(id.clone());
+                    stream.advance();
+                }
+                _ => return Err("missing type name".into())
+            }
+        }
+        _ => ()
+    };
+
     skip_whitespace(stream);
 
     match stream.pos() {
         Some(Token::Symbol(sym)) if sym == "->" => { stream.advance() },
         _ => return Err("missing lambda arrow".into())
     }
-    let args = vec![param];
+    let args = vec![decl];
     let body = Box::new(parse_expr(stream)?);
     return Ok(Expr::Abstraction { args, body });
 }

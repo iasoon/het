@@ -70,7 +70,7 @@ fn eval_(env: &Env, expr: &Expr) -> Result<Value, String> {
         }
         Expr::Abstraction { args, body } => {
             Ok(Value::Lambda {
-                args: args.clone(),
+                args: args.iter().map(|d| d.name.clone()).collect(),
                 body: Closure  { env: env.clone(), expr: (**body).clone()}
             })
         },
