@@ -2,6 +2,7 @@ mod lexer;
 mod ast;
 mod parser;
 mod evaluator;
+mod types;
 
 use std::env;
 
@@ -29,7 +30,8 @@ fn eval(text: &str) -> Result<(), String> {
     let exprs = parser::parse_tokens(&tokens)?;
     for e in exprs {
         println!("{:?}", e);
-        println!("{}", evaluator::eval(&e)?)
+        //println!("{}", evaluator::eval(&e)?)
+        println!("{:?}", types::type_expr_default(&e)?);
     }
     return Ok(());
 }
